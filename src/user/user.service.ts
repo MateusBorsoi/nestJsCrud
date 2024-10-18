@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './user.entity';
@@ -10,6 +10,11 @@ export class UserService {
     private userRepository: Repository<User>,
   ) {}
 
+  async isEmailRegistered(email: string): Promise<boolean> {
+    const user = await this.userRepository.findOne({ where: { email } });
+    return !!user;
+  }
+
   findAll(): Promise<User[]> {
     return this.userRepository.find();
   }
@@ -18,7 +23,11 @@ export class UserService {
     return this.userRepository.findOneBy({ id });
   }
 
-  create(user: User): Promise<User> {
+  async create(user: User): Promise<User> {
+    const isEmailExistOnDb = await this.isEmailRegistered(user.email);
+    if (isEmailExistOnDb) {
+      throw new ConflictException('E-mail já cadastrado');
+    }
     return this.userRepository.save(user);
   }
 
@@ -30,7 +39,7 @@ export class UserService {
     }
 
     Object.assign(user, updateUserDto);
-    return this.userRepository.save(user); // O método save atualiza a entidade
+    return this.userRepository.save(user);
   }
   async remove(id: number): Promise<void> {
     await this.userRepository.delete(id);
